@@ -2,14 +2,12 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
-/* ----------------------------------------------
-   EditForm — reusable edit component
-   ---------------------------------------------- */
+
 interface FormDataType {
   title: string;
   description: string;
-  image: File | null; // new chosen file
-  preview: string;    // preview URL (either original or chosen)
+  image: File | null; 
+  preview: string;    
   tags: string[];
 }
 
@@ -25,12 +23,12 @@ const EditForm: React.FC = () => {
     tags: [],
   });
 
-  /* ─────────────────────── Fetch post by ID ─────────────────────── */
+
   useEffect(() => {
     if (!id) return;
     const fetchPost = async () => {
       try {
-        const res = await fetch("http://localhost:5000/");
+        const res = await fetch("https://galleryproject-production.up.railway.ap/");
         const data = await res.json();
         const post = data.find((d: any) => d.id === id);
         if (!post) {
@@ -52,7 +50,7 @@ const EditForm: React.FC = () => {
     fetchPost();
   }, [id, navigate]);
 
-  /* ─────────────────────── Input handlers ─────────────────────── */
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -86,7 +84,6 @@ const EditForm: React.FC = () => {
     setFormData((prev) => ({ ...prev, tags: prev.tags.filter((t) => t !== tag) }));
   };
 
-  /* ─────────────────────── Submit ─────────────────────── */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id) return;
@@ -98,7 +95,7 @@ const EditForm: React.FC = () => {
     if (formData.image) payload.append("image", formData.image);
 
     try {
-      const res = await fetch(`http://localhost:5000/api/edit/${id}`, {
+      const res = await fetch(`https://galleryproject-production.up.railway.ap/api/edit/${id}`, {
         method: "PUT",
         body: payload,
       });
@@ -110,7 +107,6 @@ const EditForm: React.FC = () => {
     }
   };
 
-  /* ─────────────────────── UI ─────────────────────── */
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-100 to-indigo-100 px-4 py-6">
       <form

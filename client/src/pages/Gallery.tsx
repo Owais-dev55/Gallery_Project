@@ -17,7 +17,7 @@ const Gallery = () => {
   useEffect(() => {
     const fetchImages = async () => {
       try {
-        const response = await fetch("http://localhost:5000/");
+        const response = await fetch("https://galleryproject-production.up.railway.app/");
         if (!response.ok) throw new Error("Failed to fetch");
         const data: ImageEntry[] = await response.json();
         setAllImages(data);
@@ -38,12 +38,11 @@ const Gallery = () => {
   const handleDelete = async (id:string) => {
     if(!window.confirm('Delete this post ? ')) return;
 
-     const res = await fetch(`http://localhost:5000/api/entry/${id}`, {
+     const res = await fetch(`https://galleryproject-production.up.railway.app/api/entry/${id}`, {
     method: "DELETE",
   });
   if (res.ok) {
     setAllImages((prev) => prev.filter((img) => img.id !== id));
-    // also refresh filteredImages if needed
     setFilteredImages((prev) => prev.filter((img) => img.id !== id));
     toast.success("Deleted!");
   } else {

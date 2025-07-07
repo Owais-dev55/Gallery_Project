@@ -57,7 +57,7 @@ const Form = () => {
       form.append("image", formData.image);
     }
 
-    const response = await fetch("/api/submit", {
+    const response = await fetch("https://galleryproject-production.up.railway.app/api/submit", {
       method: "POST",
       body: form,
     });
@@ -70,7 +70,6 @@ const Form = () => {
     setFormData({ title: "", description: "", image: null  , tags:[]});
     (document.getElementById("image") as HTMLInputElement).value = "";
 
-    // Redirect
     navigate("/Gallery");
   };
 
