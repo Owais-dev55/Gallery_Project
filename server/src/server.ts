@@ -3,46 +3,55 @@ import path from "path";
 import fs from "fs";
 import multiparty from "multiparty";
 
-const port = 5000;
+const port = process.env.PORT || 5000;
+
 const galleryPath = path.join(process.cwd(), "data.json");
 const uploadPath  = path.join(process.cwd(), "uploads");
 
+if (!fs.existsSync(uploadPath)) fs.mkdirSync(uploadPath);
+if (!fs.existsSync(galleryPath)) fs.writeFileSync(galleryPath, "[]", "utf8");
+
 const myServer = http.createServer((req, res) => {
-  
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT , OPTIONS");
+  res.setHeader("Access-Control-Allow-Origin",
+    "https://gallery-project-delta.vercel.app");        
+  res.setHeader("Access-Control-Allow-Methods",
+    "GET, POST, DELETE, PUT, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") {
-    res.writeHead(204);
-    res.end();
+    res.writeHead(204).end();
     return;
   }
+
+  
   if (req.method === "GET") {
+  
     if (req.url === "/") {
       fs.readFile(galleryPath, (err, data) => {
         if (err) {
-          res.writeHead(404, { "Content-Type": "text/plain" });
-          res.end("Error occurred");
+          res.writeHead(500).end("Could not read data.json");
           return;
         }
-
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(data);
+        res.writeHead(200, { "Content-Type": "application/json" }).end(data);
       });
       return;
-    } else if (req.url?.startsWith("/uploads/")) {
-      const filePath = path.join(__dirname, decodeURIComponent(req.url));
+    }
+
+  
+    if (req.url?.startsWith("/uploads/")) {
+      const filePath = path.join(
+        uploadPath,
+        req.url.replace("/uploads/", "")
+      );
 
       fs.readFile(filePath, (err, data) => {
         if (err) {
-          res.writeHead(404, { "Content-Type": "text/plain" });
-          res.end("Image not found");
+          res.writeHead(404).end("Image not found");
           return;
         }
 
         const ext = path.extname(filePath).toLowerCase();
-        const mimeTypes: { [key: string]: string } = {
+        const mimeTypes: Record<string, string> = {
           ".jpg": "image/jpeg",
           ".jpeg": "image/jpeg",
           ".png": "image/png",
@@ -50,190 +59,135 @@ const myServer = http.createServer((req, res) => {
           ".gif": "image/gif",
           ".svg": "image/svg+xml",
         };
-
-        const contentType = mimeTypes[ext] || "application/octet-stream";
-
-        res.writeHead(200, { "Content-Type": contentType });
-        res.end(data);
+        res.writeHead(200, { "Content-Type": mimeTypes[ext] || "application/octet-stream" })
+           .end(data);
       });
       return;
     }
   }
+
+  /* ---------- POST /api/submit ---------- */
   if (req.url === "/api/submit" && req.method === "POST") {
     const form = new multiparty.Form({ uploadDir: uploadPath });
 
     form.parse(req, (err, fields, files) => {
       if (err) {
-        res.writeHead(400, { "Content-Type": "text/plain" });
-        res.end("Error parsing form");
+        res.writeHead(400).end("Error parsing form");
         return;
       }
 
-      const id = fields.id?.[0];
-      const title = fields.title?.[0];
+      const id          = fields.id?.[0];
+      const title       = fields.title?.[0];
       const description = fields.description?.[0];
-      const imageFile = files.image?.[0];
-      const tags = fields.tags?.[0] ? JSON.parse(fields.tags[0]) : [];
+      const imageFile   = files.image?.[0];
+      const tags        = fields.tags?.[0] ? JSON.parse(fields.tags[0]) : [];
 
       if (!title || !description) {
-        res.writeHead(400, { "Content-Type": "text/plain" });
-        res.end("Title and description are required");
+        res.writeHead(400).end("Title & description required");
         return;
       }
 
-      let imagePath = "";
-      if (imageFile) {
-        const fileName = path.basename(imageFile.path);
-        imagePath = `/uploads/${fileName}`;
-      }
-
+      const imgSegment = imageFile
+        ? `/uploads/${path.basename(imageFile.path)}`
+        : "";
       const newEntry = {
         id,
         title,
         description,
-        image: `http://localhost:${port}${imagePath}`,
+        image: `https://galleryproject-production.up.railway.app${imgSegment}`,
         tags,
       };
 
       fs.readFile(galleryPath, "utf8", (err, data) => {
-        let entries = [];
-
-        if (!err && data) {
-          try {
-            entries = JSON.parse(data);
-          } catch (parseErr) {
-            console.error("Failed to parse JSON:", parseErr);
-          }
-        }
-
+        const entries = err ? [] : JSON.parse(data || "[]");
         entries.push(newEntry);
-
-        fs.writeFile(
-          galleryPath,
-          JSON.stringify(entries, null, 2),
-          (writeErr) => {
-            if (writeErr) {
-              res.writeHead(500, { "Content-Type": "text/plain" });
-              res.end("Failed to save data");
-            } else {
-              res.writeHead(200, { "Content-Type": "application/json" });
-              res.end(JSON.stringify({ message: "Data saved successfully" }));
-            }
+        fs.writeFile(galleryPath, JSON.stringify(entries, null, 2), writeErr => {
+          if (writeErr) {
+            res.writeHead(500).end("Failed to save");
+          } else {
+            res.writeHead(200, { "Content-Type": "application/json" })
+               .end(JSON.stringify({ message: "Saved" }));
           }
-        );
+        });
       });
     });
-
     return;
   }
- if (req.url?.startsWith("/api/entry/") && req.method === "DELETE") {
-  const id = req.url.split("/").pop(); 
 
-  fs.readFile(galleryPath, "utf8", (err, data) => {
-    if (err) {
-      res.writeHead(500).end("Error reading gallery data");
-      return;
-    }
+  /* ---------- DELETE /api/entry/:id ---------- */
+  if (req.url?.startsWith("/api/entry/") && req.method === "DELETE") {
+    const id = req.url.split("/").pop();
 
-    let entries;
-    try {
-      entries = JSON.parse(data);
-    } catch (e) {
-      entries = [];
-    }
+    fs.readFile(galleryPath, "utf8", (err, data) => {
+      if (err) { res.writeHead(500).end("Read error"); return; }
+      const entries = JSON.parse(data || "[]");
+      const entry   = entries.find((e: any) => e.id === id);
+      if (!entry) { res.writeHead(404).end("Not found"); return; }
 
-    const entry = entries.find((item: any) => item.id === id);
-    if (!entry) {
-      res.writeHead(404).end("Entry not found");
-      return;
-    }
-
-    const imagePath = entry.image.replace(`http://localhost:${port}`, "");
-    const fullImagePath = path.join(__dirname, imagePath);
-    fs.unlink(fullImagePath, () => {});
-
-    const newEntries = entries.filter((item: any) => item.id !== id);
-    fs.writeFile(galleryPath, JSON.stringify(newEntries, null, 2), (err) => {
-      if (err) {
-        res.writeHead(500).end("Failed to write JSON");
-      } else {
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ message: "Deleted" }));
-      }
-    });
-  });
-  return;
-  }
-  if (req.url?.startsWith("/api/edit/") && req.method === "PUT") {
-  const id = req.url.split("/").pop();                // /api/edit/:id
-  const form = new multiparty.Form({ uploadDir: uploadPath });
-
-  form.parse(req, (err, fields, files) => {
-    if (err) {
-      res.writeHead(400).end("Error parsing form");
-      return;
-    }
-
-    const title = fields.title?.[0] || "";
-    const description = fields.description?.[0] || "";
-    const tags = fields.tags?.[0] ? JSON.parse(fields.tags[0]) : [];
-    const imageFile = files.image?.[0];
-
-    if (!title.trim() || !description.trim()) {
-      res.writeHead(400).end("Title and description required");
-      return;
-    }
-
-    fs.readFile(galleryPath, "utf8", (readErr, data) => {
-      if (readErr) {
-        res.writeHead(500).end("Error loading gallery");
-        return;
+      /* delete image file */
+      if (entry.image) {
+        const fullImage = path.join(
+          uploadPath,
+          entry.image.split("/uploads/")[1] || ""
+        );
+        fs.unlink(fullImage, () => {});
       }
 
-      const items = JSON.parse(data || "[]");
-      const idx = items.findIndex((img: any) => img.id === id);
-
-      if (idx === -1) {
-        res.writeHead(404).end("Entry not found");
-        return;
-      }
-
-      items[idx].title = title;
-      items[idx].description = description;
-      items[idx].tags = tags;
-
-      if (imageFile && imageFile.originalFilename) {
-        // delete old file if it exists
-        const oldPath = items[idx].image?.replace(`http://localhost:${port}`, "");
-        if (oldPath) fs.unlink(path.join(__dirname, oldPath), () => {});
-
-        const fileName = path.basename(imageFile.path);
-        items[idx].image = `http://localhost:${port}/uploads/${fileName}`;
-      }
-
-      fs.writeFile(galleryPath, JSON.stringify(items, null, 2), (writeErr) => {
-        if (writeErr) {
-          res.writeHead(500).end("Failed to update entry");
-        } else {
-          res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(JSON.stringify(items[idx])); // send updated object back
-        }
+      const updated = entries.filter((e: any) => e.id !== id);
+      fs.writeFile(galleryPath, JSON.stringify(updated, null, 2), wErr => {
+        if (wErr) res.writeHead(500).end("Write error");
+        else res.writeHead(200, { "Content-Type": "application/json" })
+                 .end(JSON.stringify({ message: "Deleted" }));
       });
     });
-  });
-  return;
-}
+    return;
+  }
 
+  /* ---------- PUT /api/edit/:id ---------- */
+  if (req.url?.startsWith("/api/edit/") && req.method === "PUT") {
+    const id   = req.url.split("/").pop();
+    const form = new multiparty.Form({ uploadDir: uploadPath });
 
+    form.parse(req, (err, fields, files) => {
+      if (err) { res.writeHead(400).end("Parse error"); return; }
 
-  res.writeHead(404, { "Content-Type": "text/plain" });
-  res.end("Page not Found");
+      const title       = fields.title?.[0] || "";
+      const description = fields.description?.[0] || "";
+      const tags        = fields.tags?.[0] ? JSON.parse(fields.tags[0]) : [];
+      const imageFile   = files.image?.[0];
+
+      fs.readFile(galleryPath, "utf8", (rErr, data) => {
+        if (rErr) { res.writeHead(500).end("Read error"); return; }
+
+        const items = JSON.parse(data || "[]");
+        const idx   = items.findIndex((e: any) => e.id === id);
+        if (idx === -1) { res.writeHead(404).end("Not found"); return; }
+
+        items[idx] = { ...items[idx], title, description, tags };
+
+        if (imageFile && imageFile.originalFilename) {
+          /* remove old image */
+          const oldSegment = items[idx].image.split("/uploads/")[1];
+          if (oldSegment) fs.unlink(path.join(uploadPath, oldSegment), () => {});
+          const newSegment = `/uploads/${path.basename(imageFile.path)}`;
+          items[idx].image = `https://galleryproject-production.up.railway.app${newSegment}`;
+        }
+
+        fs.writeFile(galleryPath, JSON.stringify(items, null, 2), wErr => {
+          if (wErr) res.writeHead(500).end("Write error");
+          else res.writeHead(200, { "Content-Type": "application/json" })
+                   .end(JSON.stringify(items[idx]));
+        });
+      });
+    });
+    return;
+  }
+
+  /* 404 */
+  res.writeHead(404).end("Page not Found");
 });
 
+/* ---------- Start server ---------- */
 myServer.listen(port, () => {
-  console.log(` Server running at http://localhost:${port}`);
-});
-
-myServer.on("error", (err) => {
-  console.log(" Error occurred:", err);
+  console.log(`Server running on http://localhost:${port}`);
 });
