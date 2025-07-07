@@ -4,8 +4,8 @@ import fs from "fs";
 import multiparty from "multiparty";
 
 const port = 5000;
-const galleryPath = path.join(__dirname, "data.json");
-const uploadPath = path.join(__dirname, "uploads");
+const galleryPath = path.join(process.cwd(), "data.json");
+const uploadPath  = path.join(process.cwd(), "uploads");
 
 const myServer = http.createServer((req, res) => {
   
