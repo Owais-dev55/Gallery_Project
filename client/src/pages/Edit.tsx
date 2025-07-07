@@ -28,7 +28,7 @@ const EditForm: React.FC = () => {
     if (!id) return;
     const fetchPost = async () => {
       try {
-        const res = await fetch("https://galleryproject-production.up.railway.ap/");
+        const res = await fetch("https://galleryproject-production.up.railway.app/");
         const data = await res.json();
         const post = data.find((d: any) => d.id === id);
         if (!post) {
@@ -95,7 +95,7 @@ const EditForm: React.FC = () => {
     if (formData.image) payload.append("image", formData.image);
 
     try {
-      const res = await fetch(`https://galleryproject-production.up.railway.ap/api/edit/${id}`, {
+      const res = await fetch(`https://galleryproject-production.up.railway.app/api/edit/${id}`, {
         method: "PUT",
         body: payload,
       });

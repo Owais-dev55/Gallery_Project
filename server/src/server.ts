@@ -13,7 +13,7 @@ if (!fs.existsSync(galleryPath)) fs.writeFileSync(galleryPath, "[]", "utf8");
 
 const myServer = http.createServer((req, res) => {
   res.setHeader("Access-Control-Allow-Origin",
-    "https://gallery-project-delta.vercel.app");        
+    "https://gallery-project-fullstack.vercel.app/");        
   res.setHeader("Access-Control-Allow-Methods",
     "GET, POST, DELETE, PUT, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
