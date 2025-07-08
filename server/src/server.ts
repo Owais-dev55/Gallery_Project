@@ -3,7 +3,6 @@ import path from "path";
 import fs from "fs";
 import multiparty from "multiparty";
 
-// === Config ===
 const port = process.env.PORT || 5000;
 const galleryPath = path.join(process.cwd(), "data.json");
 const uploadPath = path.join(process.cwd(), "uploads");
@@ -11,7 +10,6 @@ const uploadPath = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadPath)) fs.mkdirSync(uploadPath);
 if (!fs.existsSync(galleryPath)) fs.writeFileSync(galleryPath, "[]", "utf8");
 
-// === CORS Setup ===
 const allowedOrigins = [
   "https://gallery-project-fullstack.vercel.app",
   "http://localhost:5173",
@@ -32,7 +30,6 @@ function setCorsHeaders(req: http.IncomingMessage, res: http.ServerResponse) {
   );
 }
 
-// === HTTP Server ===
 const myServer = http.createServer((req, res) => {
   setCorsHeaders(req, res);
 
@@ -41,7 +38,6 @@ const myServer = http.createServer((req, res) => {
     return;
   }
 
-  // === GET all entries ===
   if (req.method === "GET") {
     if (req.url === "/") {
       fs.readFile(galleryPath, (err, data) => {
@@ -74,7 +70,6 @@ const myServer = http.createServer((req, res) => {
     }
   }
 
-  // === POST /api/submit ===
   if (req.url === "/api/submit" && req.method === "POST") {
     const form = new multiparty.Form({ uploadDir: uploadPath });
 
@@ -113,7 +108,6 @@ const myServer = http.createServer((req, res) => {
     return;
   }
 
-  // === DELETE /api/entry/:id ===
   if (req.url?.startsWith("/api/entry/") && req.method === "DELETE") {
     const id = req.url.split("/").pop();
 
@@ -139,7 +133,6 @@ const myServer = http.createServer((req, res) => {
     return;
   }
 
-  // === PUT /api/edit/:id ===
   if (req.url?.startsWith("/api/edit/") && req.method === "PUT") {
     const id = req.url.split("/").pop();
     const form = new multiparty.Form({ uploadDir: uploadPath });
@@ -177,11 +170,9 @@ const myServer = http.createServer((req, res) => {
     return;
   }
 
-  // === 404 Fallback ===
   res.writeHead(404).end("Page not Found");
 });
 
-// === Start Server ===
 myServer.listen(port, () => {
   console.log(`✅ Server running on http://localhost:${port}`);
 });
